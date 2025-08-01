@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reddirt"
+version = "0.1.0"
+description = "An interactive CLI for analyzing Reddit user activity using LLMs."
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "praw>=7.8.1",
+    "python-dotenv>=1.1.0",
+    "requests>=2.32.4",
+    "rich",
+    "inquirer",
+    "sounddevice>=0.5.2",
+    "numpy>=2.3.1",
+    "tiktoken",
+]
+
+[project.scripts]
+reddirt = "reddirt.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"

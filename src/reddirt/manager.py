@@ -1,0 +1,123 @@
+"""Manager for the Reddirt application."""
+
+import logging
+
+from rich.live import Live
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.spinner import Spinner
+
+from . import console
+from .cache_manager import CacheManager
+from .config import Config
+from .llm_service import LLMService
+from .reddit_service import RedditService
+from .tts_service import TTSService
+
+
+class Manager:
+    """Orchestrates the Reddirt application."""
+
+    def __init__(self):
+        """Initialize the manager."""
+        try:
+            self.config = Config.from_env()
+        except ValueError as e:
+            console.print(f"[red]Error: {e}[/red]")
+            exit(1)
+
+        self.cache_manager = CacheManager(cache_days=self.config.cache_days)
+        self.reddit_service = RedditService(
+            client_id=self.config.reddit_client_id,
+            client_secret=self.config.reddit_client_secret,
+            user_agent=self.config.reddit_user_agent,
+        )
+        self.llm_service = LLMService(api_key=self.config.google_api_key)
+        self.tts_service = TTSService()
+
+    def process_analysis(self, username: str):
+        """Process the analysis for a given username."""
+
+        with Live(
+            Spinner("dots", text="[bright_magenta]Analyzing...[/bright_magenta]"),
+            console=console,
+            refresh_per_second=10,
+        ) as live:
+            # Check cache first
+            if self.config.use_cache and not self.config.force_refresh:
+                cached_result = self.cache_manager.get_cached_result(username, self.config.__dict__)
+                if cached_result:
+                    result = cached_result["result"]
+                    live.stop()
+                    self.print_results(
+                        username, result["user_info"], result["full_analysis"], result.get("tts_summary")
+                    )
+                    return
+
+            live.update(Spinner("dots", text="[bright_magenta]Fetching user data...[/bright_magenta]"))
+            redditor = self.reddit_service.fetch_redditor(username)
+            if not redditor:
+                live.stop()
+                console.print(f"[red]User '{username}' not found.[/red]")
+                return
+
+            user_info = self.reddit_service.get_user_info(username)
+
+            live.update(Spinner("dots", text="[bright_magenta]Fetching comments and posts...[/bright_magenta]"))
+            user_comments = self.reddit_service.fetch_comments(
+                redditor,
+                limit=self.config.comments_limit,
+                include_parent_context=self.config.include_parent_context,
+                max_parent_context_length=self.config.max_parent_context_length,
+                max_comment_length=self.config.max_comment_length,
+            )
+            user_posts = self.reddit_service.fetch_posts(redditor, limit=self.config.posts_limit)
+
+            if not user_comments and not user_posts:
+                live.stop()
+                console.print(f"[yellow]No comments or posts found for user '{username}'.[/yellow]")
+                return
+
+            live.update(Spinner("dots", text="[bright_magenta]Fetching subreddit descriptions...[/bright_magenta]"))
+            subreddit_descriptions = self.reddit_service.get_subreddit_descriptions(
+                user_comments,
+                user_posts,
+                cache_manager=self.cache_manager,
+                force_refresh=self.config.force_refresh,
+            )
+
+            live.update(Spinner("dots", text="[bright_magenta]Analyzing with LLM...[/bright_magenta]"))
+            full_analysis = self.llm_service.analyze_reddit_activity(
+                user_comments,
+                user_posts,
+                subreddit_descriptions=subreddit_descriptions,
+                include_post_bodies=self.config.include_post_bodies,
+                max_activities=self.config.llm_activities_limit,
+                max_post_body_length=self.config.max_post_body_length,
+            )
+
+            live.update(Spinner("dots", text="[bright_magenta]Generating summary...[/bright_magenta]"))
+            tts_summary = self.llm_service.summarize_analysis(full_analysis, max_length=350)
+
+            analysis_payload = {
+                "user_info": user_info,
+                "full_analysis": full_analysis,
+                "tts_summary": tts_summary,
+            }
+
+            if self.config.use_cache:
+                self.cache_manager.save_result(username, self.config.__dict__, analysis_payload)
+
+            live.stop()
+            self.print_results(username, user_info, full_analysis, tts_summary)
+
+    def print_results(self, username, user_info, full_analysis, tts_summary):
+        """Print the analysis results."""
+        console.print(Panel(Markdown(full_analysis), title=f"Analysis for {username}", border_style="bright_cyan"))
+
+        if self.config.use_tts and tts_summary:
+            console.print(Panel(tts_summary, title="TTS Summary", border_style="magenta"))
+            try:
+                self.tts_service.synthesize_speech(tts_summary)
+            except Exception as e:
+                console.print(f"[red]Error during TTS synthesis: {e}[/red]")
