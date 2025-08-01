@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Reddirt CLI",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/reddirt/cli.py",
+      "args": [
+        "JoMa4",
+        "--force-refresh",
+        "--output-to-file",
+        "--comments-limit",
+        "10",
+        "--posts-limit",
+        "10"
+      ],
+
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    }
+  ]
+}
