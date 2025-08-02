@@ -164,7 +164,8 @@ class LLMService:
             "  1. Summarize the following Reddit user analysis in a conversational, professional tone.\n"
             "  2. Avoid section headers, markdown, or lists. Make it sound like you're giving a quick spoken "
             "overview to a professional colleague.\n"
-            f"  3. Limit the summary to {max_length} words or less.\n"
+            "  3. Avoid using words like 'hey', 'ok', and 'so' to start the summary"
+            f"  4. Limit the summary to {max_length} words or less.\n"
             "</Instructions>\n"
         )
 
