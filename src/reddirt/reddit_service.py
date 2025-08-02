@@ -77,6 +77,7 @@ class RedditService:
                 comments.append(
                     Comment(
                         id=c.id,
+                        url=f"https://www.reddit.com/{c.submission.subreddit_name_prefixed}/comments/{c.submission.id}/comment/{c.id}/",
                         body=c.body[:max_comment_length],
                         subreddit=c.subreddit.display_name,
                         created_utc=c.created_utc,
@@ -101,6 +102,7 @@ class RedditService:
                 posts.append(
                     Post(
                         id=p.id,
+                        url=p.url,
                         title=p.title,
                         body=p.selftext if p.is_self else p.url,
                         subreddit=p.subreddit.display_name,

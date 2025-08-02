@@ -12,6 +12,7 @@ class RedditActivity:
 
     id: str
     subreddit: str
+    url: str
     created_utc: float
     upvotes: int
     downvotes: int
@@ -40,8 +41,12 @@ class Comment(RedditActivity):
                 "    </ParentContext>\n"
             )
         return (
-            f'  <Activity type="comment" subreddit="{self.subreddit}" upvotes="{self.upvotes}" '
-            f'downvotes="{self.downvotes}" created_date="{created_date}">\n'
+            f'  <Activity type="comment" '
+            f'subreddit="{self.subreddit}" '
+            f'url="{html.escape(self.url)}" '
+            f'upvotes="{self.upvotes}" '
+            f'downvotes="{self.downvotes}" '
+            f'created_date="{created_date}">\n'
             f"    <Content>\n"
             f"      <body>{html.escape(self.body)}</body>\n"
             f"    </Content>\n"
@@ -66,8 +71,12 @@ class Post(RedditActivity):
             body_content = f"<body>{html.escape(truncated_body)}</body>\n"
 
         return (
-            f'  <Activity type="post" subreddit="{self.subreddit}" upvotes="{self.upvotes}" '
-            f'downvotes="{self.downvotes}" created_date="{created_date}">\n'
+            f'  <Activity type="post" '
+            f'subreddit="{self.subreddit}" '
+            f'url="{html.escape(self.url)}" '
+            f'upvotes="{self.upvotes}" '
+            f'downvotes="{self.downvotes}" '
+            f'created_date="{created_date}">\n'
             f"    <Content>\n"
             f"      <title>{html.escape(self.title)}</title>\n"
             f"      {body_content}"
