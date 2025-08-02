@@ -1,93 +1,121 @@
-"""Text-to-speech service for Reddit Who Dis."""
-
 import logging
-import queue
-import threading
+from typing import Optional
 
-import numpy as np
-import requests
-import sounddevice as sd
+from openai import OpenAI
 
 
 class TTSService:
-    """Service for synthesizing speech from text."""
+    """Service for generating speech audio from text using Kokoro TTS via OpenAI-compatible API."""
 
-    def __init__(self, default_voice: str = "am_adam(1)+af_heart(3)"):
-        """Initialize the TTS service."""
+    def __init__(
+        self,
+        base_url: str = "http://localhost:8880/v1",
+        default_voice: str = "af_sky+af_bella",
+    ):
+        """
+        Args:
+            base_url: Base URL for the local Kokoro TTS server (OpenAI-compatible endpoint).
+            default_voice: Default voice to use (e.g., 'kokoro' or a voicepack combo).
+        """
+        self.client = OpenAI(base_url=base_url, api_key="not-needed")
         self.default_voice = default_voice
-        self.api_url = "https://api.kokoro-fastapi.com/v1/tts/stream"
 
-    def _get_headers(self) -> dict:
-        """Get API headers."""
-        return {"Accept": "application/json", "Content-Type": "application/json"}
-
-    def _get_payload(self, text: str, voice: str) -> dict:
-        """Get API payload."""
-        return {
-            "text": text,
-            "voice": voice,
-            "speed": 1.0,
-            "emotion": "Neutral",
-            "language": "en",
-        }
-
-    def _stream_audio(self, text: str, voice: str):
-        """Stream audio from the TTS API and play it."""
-        audio_queue = queue.Queue()
-        stop_event = threading.Event()
-
-        def fetch_audio():
-            try:
-                with requests.post(
-                    self.api_url,
-                    headers=self._get_headers(),
-                    json=self._get_payload(text, voice),
-                    stream=True,
-                ) as response:
-                    response.raise_for_status()
-                    for chunk in response.iter_content(chunk_size=4096):
-                        audio_queue.put(chunk)
-            except requests.RequestException as e:
-                logging.error(f"Error fetching audio stream: {e}")
-            finally:
-                audio_queue.put(None)  # Signal end of stream
-
-        def play_audio():
-            try:
-                with sd.OutputStream(samplerate=24000, channels=1, dtype="float32") as stream:
-                    while not stop_event.is_set():
-                        chunk = audio_queue.get()
-                        if chunk is None:
-                            break
-                        audio_data = np.frombuffer(chunk, dtype=np.float32)
-                        stream.write(audio_data)
-            except Exception as e:
-                logging.error(f"Error playing audio: {e}")
-
-        fetch_thread = threading.Thread(target=fetch_audio)
-        play_thread = threading.Thread(target=play_audio)
-
-        fetch_thread.start()
-        play_thread.start()
-
-        fetch_thread.join()
-        play_thread.join()
-
-    def synthesize_speech(self, text: str, voice: str = None, stream: bool = True):
-        """Synthesize speech from text.
+    def synthesize_speech(
+        self,
+        text: str,
+        voice: Optional[str] = None,
+        save_path: Optional[str] = None,
+        stream: bool = False,
+    ):
+        """
+        Generate speech audio from text, with options to stream (playback), save to file, or return bytes.
 
         Args:
-            text: Text to synthesize.
-            voice: Voice to use for synthesis.
-            stream: Whether to stream the audio.
+            text: The text to synthesize.
+            voice: Voice name or combo (optional).
+            save_path: If provided, save the audio to this file path (WAV for PCM, MP3 for non-PCM).
+            stream: If True, stream audio in real time (playback as it streams).
+
+        Returns:
+            If stream is False and save_path is not set, returns the audio bytes.
+            If save_path is set and audio is saved successfully, returns the save_path.
+            Otherwise, returns None.
         """
-        if not text:
-            logging.warning("No text provided for TTS synthesis.")
-            return
+        import wave
 
-        voice = voice or self.default_voice
+        import numpy as np
+        import sounddevice as sd
 
+        voice_name = voice if voice is not None else self.default_voice
+        sample_rate = 24000  # Known sample rate for Kokoro PCM
+        all_audio_data = bytearray()
+        chunk_count = 0
+        total_bytes = 0
+
+        # Determine response_format
+        response_format = None
         if stream:
-            self._stream_audio(text, voice)
-        else:
-            logging.error("Non-streaming TTS not implemented.")
+            response_format = "pcm"
+        elif save_path:
+            if save_path.endswith(".wav"):
+                response_format = "wav"
+            elif save_path.endswith(".mp3"):
+                response_format = "mp3"
+            elif save_path.endswith(".flac"):
+                response_format = "flac"
+            elif save_path.endswith(".aac"):
+                response_format = "aac"
+            elif save_path.endswith(".opus"):
+                response_format = "opus"
+            else:
+                response_format = "mp3"  # Default to mp3 if unknown
+
+        try:
+            with self.client.audio.speech.with_streaming_response.create(
+                model="kokoro",
+                voice=voice_name,
+                input=text,
+                response_format=response_format,
+            ) as response:
+                if stream or (save_path and save_path.endswith(".wav")):
+                    # PCM streaming for playback and/or WAV saving
+                    stream_obj = None
+                    if stream:
+                        stream_obj = sd.OutputStream(
+                            samplerate=sample_rate,
+                            channels=1,
+                            dtype=np.int16,
+                            blocksize=1024,
+                            latency="low",
+                        )
+                        stream_obj.start()
+                    for chunk in response.iter_bytes(chunk_size=512):
+                        if chunk:
+                            chunk_count += 1
+                            total_bytes += len(chunk)
+                            all_audio_data.extend(chunk)
+                            if stream:
+                                audio_chunk = np.frombuffer(chunk, dtype=np.int16)
+                                stream_obj.write(audio_chunk)
+                    if stream:
+                        stream_obj.stop()
+                        stream_obj.close()
+                    if save_path and save_path.endswith(".wav"):
+                        with wave.open(save_path, "wb") as wav_file:
+                            wav_file.setnchannels(1)
+                            wav_file.setsampwidth(2)
+                            wav_file.setframerate(sample_rate)
+                            wav_file.writeframes(all_audio_data)
+                        return save_path
+                    if not stream and not save_path:
+                        return bytes(all_audio_data)
+                else:
+                    # Non-PCM (e.g., MP3, FLAC, etc.) - just save or return
+                    if save_path:
+                        response.stream_to_file(save_path)
+                        return save_path
+                    else:
+                        return b"".join(response.iter_bytes())
+        except Exception as e:
+            logging.error(f"TTS synthesis failed: {e}")
+            return None
