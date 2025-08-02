@@ -2,7 +2,7 @@
 
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
 
@@ -15,18 +15,35 @@ class Config:
     reddit_client_secret: str
     reddit_user_agent: str
     google_api_key: str
-    cache_days: int = 7
-    comments_limit: int = 100
-    posts_limit: int = 50
-    include_post_bodies: bool = True
-    llm_activities_limit: int = 200
-    max_post_body_length: int = 500
-    include_parent_context: bool = True
-    max_parent_context_length: int = 500
-    max_comment_length: int = 500
-    use_cache: bool = True
-    force_refresh: bool = False
-    use_tts: bool = True
+    cache_days: int = field(default=7, metadata={"description": "The number of days to keep cached data."})
+    comments_limit: int = field(default=150, metadata={"description": "The maximum number of comments to fetch."})
+    posts_limit: int = field(default=150, metadata={"description": "The maximum number of posts to fetch."})
+    include_post_bodies: bool = field(
+        default=True, metadata={"description": "Whether to include the body of posts in the analysis."}
+    )
+    llm_activities_limit: int = field(
+        default=200, metadata={"description": "The maximum number of activities to send to the LLM."}
+    )
+    max_post_body_length: int = field(
+        default=500, metadata={"description": "The maximum length of a post body to include in the analysis."}
+    )
+    include_parent_context: bool = field(
+        default=True, metadata={"description": "Whether to include the parent context of comments in the analysis."}
+    )
+    max_parent_context_length: int = field(
+        default=500, metadata={"description": "The maximum length of the parent context to include in the analysis."}
+    )
+    max_comment_length: int = field(
+        default=500, metadata={"description": "The maximum length of a comment to include in the analysis."}
+    )
+    use_cache: bool = field(default=True, metadata={"description": "Whether to use cached data."})
+    force_refresh: bool = field(
+        default=False, metadata={"description": "Whether to force a refresh of the data, ignoring the cache."}
+    )
+    use_tts: bool = field(
+        default=False, metadata={"description": "Whether to use text-to-speech for the analysis summary."}
+    )
+    save_output: bool = field(default=True, metadata={"description": "Whether to save the markdown output to a file."})
 
     @classmethod
     def from_env(cls) -> "Config":
