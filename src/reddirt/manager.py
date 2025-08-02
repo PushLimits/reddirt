@@ -32,7 +32,7 @@ class Manager:
             client_secret=self.config.reddit_client_secret,
             user_agent=self.config.reddit_user_agent,
         )
-        self.llm_service = LLMService(api_key=self.config.google_api_key)
+        self.llm_service = LLMService(api_key=self.config.gemini_api_key)
         self.tts_service = TTSService()
         self.output_dir = "output"
         if not os.path.exists(self.output_dir):
@@ -52,9 +52,8 @@ class Manager:
                 if cached_result:
                     result = cached_result["result"]
                     live.stop()
-                    self.print_results(
-                        username, result["user_info"], result["full_analysis"], result.get("tts_summary")
-                    )
+                    self._print_analysis(username, result["full_analysis"])
+                    self._handle_tts(result["tts_summary"])
                     return
 
             live.update(Spinner("dots", text="[bright_magenta]Fetching reddit user statistics...[/bright_magenta]"))
@@ -143,6 +142,6 @@ class Manager:
         if self.config.use_tts and tts_summary:
             console.print(Panel(tts_summary, title="TTS Summary", border_style="magenta"))
             try:
-                self.tts_service.synthesize_speech(tts_summary)
+                self.tts_service.synthesize_speech(tts_summary, stream=True)
             except Exception as e:
                 console.print(f"[red]Error during TTS synthesis: {e}[/red]")

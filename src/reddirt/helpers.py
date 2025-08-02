@@ -38,13 +38,15 @@ def handle_config(manager):
         editable_keys = [
             key
             for key in config_vars
-            if key not in ["reddit_client_id", "reddit_client_secret", "google_api_key", "reddit_user_agent"]
+            if key not in ["reddit_client_id", "reddit_client_secret", "gemini_api_key", "reddit_user_agent"]
         ]
 
         choices = []
         for key in editable_keys:
-            description = descriptions.get(key, "No description available.")
-            choices.append((f"{key}: {config_vars[key]} ({description})", key))
+            description = descriptions.get(key, "")
+            if description:
+                description = f" ({description})"
+            choices.append((f"{key}{description}: {config_vars[key]}", key))
         choices.append(("exit", "exit"))
 
         questions = [
@@ -52,6 +54,7 @@ def handle_config(manager):
                 "setting_to_change",
                 message="Select a setting to change (or select 'exit')",
                 choices=choices,
+                carousel=True,
             )
         ]
         answers = inquirer.prompt(questions)
