@@ -15,6 +15,9 @@ wheels/
 # VSCode
 .vscode/
 
+# mac files
+.DS_Store
+
 # Project specific files
 .cache/
 output/
