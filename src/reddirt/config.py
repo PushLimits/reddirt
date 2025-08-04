@@ -36,7 +36,6 @@ class Config:
     max_comment_length: int = field(
         default=500, metadata={"description": "The maximum length of a comment to include in the analysis."}
     )
-    use_cache: bool = field(default=True, metadata={"description": "Whether to use cached data."})
     force_refresh: bool = field(
         default=False, metadata={"description": "Whether to force a refresh of the data, ignoring the cache."}
     )

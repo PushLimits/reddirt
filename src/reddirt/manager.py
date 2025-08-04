@@ -52,7 +52,7 @@ class Manager:
             refresh_per_second=10,
         ) as live:
             # Check cache first
-            if self.config.use_cache and not self.config.force_refresh:
+            if not self.config.force_refresh:
                 cached_result = self.cache_manager.get_cached_result(username, self.config.__dict__)
                 if cached_result:
                     result = cached_result["result"]
@@ -111,8 +111,7 @@ class Manager:
                 "tts_summary": tts_summary,
             }
 
-            if self.config.use_cache:
-                self.cache_manager.save_result(username, self.config.__dict__, analysis_payload)
+            self.cache_manager.save_result(username, self.config.__dict__, analysis_payload)
 
             live.stop()
 
