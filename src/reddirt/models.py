@@ -14,8 +14,7 @@ class RedditActivity:
     subreddit: str
     url: str
     created_utc: float
-    upvotes: int
-    downvotes: int
+    score: int
 
     def to_xml(self, include_post_body: bool = False, max_post_body_length: int = 500) -> str:
         """Serialize the activity to an XML string."""
@@ -44,8 +43,7 @@ class Comment(RedditActivity):
             f'  <Activity type="comment" '
             f'subreddit="{self.subreddit}" '
             f'url="{html.escape(self.url)}" '
-            f'upvotes="{self.upvotes}" '
-            f'downvotes="{self.downvotes}" '
+            f'score="{self.score}" '
             f'created_date="{created_date}">\n'
             f"    <Content>\n"
             f"      <body>{html.escape(self.body)}</body>\n"
@@ -74,8 +72,7 @@ class Post(RedditActivity):
             f'  <Activity type="post" '
             f'subreddit="{self.subreddit}" '
             f'url="{html.escape(self.url)}" '
-            f'upvotes="{self.upvotes}" '
-            f'downvotes="{self.downvotes}" '
+            f'score="{self.score}" '
             f'created_date="{created_date}">\n'
             f"    <Content>\n"
             f"      <title>{html.escape(self.title)}</title>\n"

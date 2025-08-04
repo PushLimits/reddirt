@@ -31,6 +31,11 @@ class Manager:
             client_id=self.config.reddit_client_id,
             client_secret=self.config.reddit_client_secret,
             user_agent=self.config.reddit_user_agent,
+            comments_limit=self.config.comments_limit,
+            posts_limit=self.config.posts_limit,
+            include_parent_context=self.config.include_parent_context,
+            max_parent_context_length=self.config.max_parent_context_length,
+            max_comment_length=self.config.max_comment_length,
         )
         self.llm_service = LLMService(api_key=self.config.gemini_api_key)
         self.tts_service = TTSService()
@@ -66,16 +71,10 @@ class Manager:
             user_info = self.reddit_service.get_user_info(username)
 
             live.update(Spinner("dots", text="[bright_magenta]Fetching reddit comments...[/bright_magenta]"))
-            user_comments = self.reddit_service.fetch_comments(
-                redditor,
-                limit=self.config.comments_limit,
-                include_parent_context=self.config.include_parent_context,
-                max_parent_context_length=self.config.max_parent_context_length,
-                max_comment_length=self.config.max_comment_length,
-            )
+            user_comments = list(self.reddit_service.fetch_comments(redditor))
 
             live.update(Spinner("dots", text="[bright_magenta]Fetching reddit posts...[/bright_magenta]"))
-            user_posts = self.reddit_service.fetch_posts(redditor, limit=self.config.posts_limit)
+            user_posts = list(self.reddit_service.fetch_posts(redditor))
 
             if not user_comments and not user_posts:
                 live.stop()
@@ -83,10 +82,12 @@ class Manager:
                 return
 
             live.update(Spinner("dots", text="[bright_magenta]Fetching subreddit descriptions...[/bright_magenta]"))
-            subreddit_descriptions = self.reddit_service.get_subreddit_descriptions(
-                user_comments,
-                user_posts,
-                cache_manager=self.cache_manager,
+            unique_subreddits = {
+                item.subreddit for item in user_comments + user_posts
+            }
+            subreddit_descriptions = self.cache_manager.get_subreddit_descriptions(
+                reddit_instance=self.reddit_service.reddit,
+                subreddits=unique_subreddits,
                 force_refresh=self.config.force_refresh,
             )
 
