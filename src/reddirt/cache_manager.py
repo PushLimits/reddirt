@@ -37,7 +37,7 @@ class CacheManager:
         Returns:
             A unique cache key string.
         """
-        combined = f"{username}:{config_hash}"
+        combined = f"{username.lower()}:{config_hash}"
         return hashlib.sha256(combined.encode()).hexdigest()
 
     def _generate_config_hash(self, config_dict: Dict) -> str:
@@ -51,7 +51,7 @@ class CacheManager:
         """
         # Remove cache-related keys and sort to ensure consistent hash
         analysis_config = {
-            k: v for k, v in config_dict.items() if k not in ["cache_days", "force_refresh"]
+            k: v for k, v in config_dict.items() if k not in ["cache_days", "force_refresh", "use_tts", "save_output"]
         }
         config_str = json.dumps(analysis_config, sort_keys=True)
         return hashlib.sha256(config_str.encode()).hexdigest()
