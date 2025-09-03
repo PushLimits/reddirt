@@ -21,6 +21,7 @@ dependencies = [
     "sounddevice>=0.5.2",
     "numpy>=2.3.1",
     "tiktoken",
+    "openai",
 ]
 
 [dependency-groups]
