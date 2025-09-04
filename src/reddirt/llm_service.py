@@ -22,6 +22,7 @@ class LLMService:
 
     def analyze_reddit_activity(
         self,
+        user_info: dict,
         comments: List[Comment],
         posts: List[Post],
         subreddit_descriptions: Optional[Dict[str, str]] = None,
@@ -52,6 +53,12 @@ class LLMService:
         all_activities.sort(key=lambda x: x.created_utc, reverse=True)
         activities_for_llm = all_activities[:max_activities]
 
+        # Build XML user info
+        user_info_xml = "  <UserInfo>\n"
+        for key, value in user_info.items():
+            user_info_xml += f"    <{key.replace('_', '').capitalize()}>{value}</{key.replace('_', '').capitalize()}>\n"
+        user_info_xml += "  </UserInfo>\n"
+
         # Build XML subreddit context
         subreddit_context_xml = ""
         if subreddit_descriptions:
@@ -63,10 +70,10 @@ class LLMService:
         # XML instructions
         instructions_xml = (
             "<Instructions>\n"
-            "  The following data is provided in XML format, with subreddit contexts, instructions, and user "
-            "activities clearly separated into distinct tags.\n"
-            "    1. Each ACTIVITY element contains attributes for type (post/comment), subreddit, upvotes, downvotes, "
-            "and created_date.\n"
+            "  The following data is provided in XML format, with subreddit contexts, instructions, user information, "
+            "and user activities clearly separated into distinct XML elements.\n"
+            "    1. Each ACTIVITY element contains attributes for type (post/comment), subreddit, score, "
+            "url, and created_date.\n"
             "    2. Each ACTIVITY includes CONTENT elements with both BODY and PARENTCONTEXT child elements.\n"
             "    3. The PARENTCONTEXT element contains an author attribute to understand trends in user interaction "
             "patterns.\n"
@@ -83,9 +90,10 @@ class LLMService:
             "    8. Any potential areas of expertise or knowledge they may have.\n"
             "    9. Any potential areas of concern or red flags based on their activity.\n"
             "    10. Any other relevant insights that can be drawn from their activity.\n\n"
+            "    11. Links to the most relevant activity (post/comment urls) used to determine the analysis.\n\n"
             "  Use the following guidelines for the analysis:\n"
             "    1. The analysis MUST use the subreddit descriptions to provide context for the user's activities.\n"
-            "    2. The analysis MUST use activity upvotes and downvotes to gauge the reception and relevance of "
+            "    2. The analysis MUST use overall activity score to gauge the reception and relevance of "
             "the post or comment.\n"
             "    3. The analysis MUST be comprehensive, covering all aspects of the user's activity.\n"
             "    4. The output MUST be in a professional tone, suitable for a report or summary.\n"
@@ -94,6 +102,9 @@ class LLMService:
             "    7. The output MUST be concise, insightful, and well-organized.\n"
             "    8. The output MUST NOT include any personal opinions or biases.\n"
             "    9. The output MUST NOT include any irrelevant information or tangents.\n"
+            "    10. Links can be both inline and included in their own section if they help to clarify the analysis.\n"
+            "    11. The title of the report should be 'Reddit Dirt for <REDDIT_USERNAME>'. "
+            "and include a subheading with the known reddit user information.\n"
             "</Instructions>\n"
         )
 
@@ -107,6 +118,7 @@ class LLMService:
         prompt = (
             "<RedditAnalysisRequest>\n"
             f"  {instructions_xml}"
+            f"  {user_info_xml}"
             f"  {subreddit_context_xml}"
             f"  {activities_xml}"
             "</RedditAnalysisRequest>"
@@ -152,7 +164,8 @@ class LLMService:
             "  1. Summarize the following Reddit user analysis in a conversational, professional tone.\n"
             "  2. Avoid section headers, markdown, or lists. Make it sound like you're giving a quick spoken "
             "overview to a professional colleague.\n"
-            f"  3. Limit the summary to {max_length} words or less.\n"
+            "  3. Avoid using words like 'hey', 'ok', and 'so' to start the summary"
+            f"  4. Limit the summary to {max_length} words or less.\n"
             "</Instructions>\n"
         )
 

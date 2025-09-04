@@ -1,26 +1,27 @@
 """CLI entry point for the Reddirt application."""
 
+import os
 import sys
 
 from rich.text import Text
 
 from reddirt import console
-from reddirt.helpers import handle_command, show_help
+from reddirt.helpers import handle_command
 from reddirt.manager import Manager
 
 
 def display_application_banner():
     """Display the application banner."""
     banner_text = """
-██████╗ ███████╗██████╗ ██████╗ ██╗████████╗
-██╔══██╗██╔════╝██╔══██╗██╔══██╗██║╚══██╔══╝
-██████╔╝█████╗  ██║  ██║██║  ██║██║   ██║   
-██╔══██╗██╔══╝  ██║  ██║██║  ██║██║   ██║   
-██║  ██║███████╗██████╔╝██████╔╝██║   ██║   
-╚═╝  ╚═╝╚══════╝╚═════╝ ╚═════╝ ╚═╝   ╚═╝   
+██████╗  ███████╗ ██████╗  ██████╗  ██╗ ██████╗  ████████╗
+██╔══██╗ ██╔════╝ ██╔══██╗ ██╔══██╗ ██║ ██╔══██╗ ╚══██╔══╝
+██████╔╝ █████╗   ██║  ██║ ██║  ██║ ██║ ██████╔╝    ██║   
+██╔══██╗ ██╔══╝   ██║  ██║ ██║  ██║ ██║ ██╔══██╗    ██║   
+██║  ██║ ███████╗ ██████╔╝ ██████╔╝ ██║ ██║  ██║    ██║   
+╚═╝  ╚═╝ ╚══════╝ ╚═════╝  ╚═════╝  ╚═╝ ╚═╝  ╚═╝    ╚═╝   
 """
     lines = banner_text.strip().split("\n")
-    gradient_colors = ["bright_red", "red", "bright_yellow", "yellow", "bright_magenta", "magenta"]
+    gradient_colors = ["purple", "blue_violet", "medium_purple", "royal_blue", "dodger_blue", "deep_sky_blue"]
 
     styled_lines = []
     for i, line in enumerate(lines):
@@ -33,20 +34,22 @@ def display_application_banner():
         full_banner.append(line)
         full_banner.append("\n")
 
-    subtitle = Text("Interactive Reddit User Analysis", style="bold bright_magenta")
+    subtitle = Text("Interactive Reddit User Analysis", style="bold purple")
     full_banner.append("\n")
     full_banner.append(subtitle)
+    full_banner.append("\n")
 
     console.print(full_banner)
 
 
 def interactive_shell():
     """Run the interactive shell."""
+    os.system("cls" if os.name == "nt" else "clear")
     display_application_banner()
 
-    console.print("\n[dim white]Tips for getting started:[/dim white]")
-    console.print("[white]1. Type 'analyze <username>' to start.[/white]")
-    console.print("[white]2. Type '/help' for a list of commands.[/white]\n")
+    console.print("This application analyzes a Reddit user's activity and provides insights into their behavior.")
+    console.print("To get started, simply enter a Reddit username below.")
+    console.print("For a list of commands, type '/help'.\n")
 
     manager = Manager()
 

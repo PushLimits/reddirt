@@ -1,6 +1,6 @@
 """Manager for the Reddirt application."""
 
-import logging
+import os
 
 from rich.live import Live
 from rich.markdown import Markdown
@@ -31,9 +31,17 @@ class Manager:
             client_id=self.config.reddit_client_id,
             client_secret=self.config.reddit_client_secret,
             user_agent=self.config.reddit_user_agent,
+            comments_limit=self.config.comments_limit,
+            posts_limit=self.config.posts_limit,
+            include_parent_context=self.config.include_parent_context,
+            max_parent_context_length=self.config.max_parent_context_length,
+            max_comment_length=self.config.max_comment_length,
         )
-        self.llm_service = LLMService(api_key=self.config.google_api_key)
+        self.llm_service = LLMService(api_key=self.config.gemini_api_key)
         self.tts_service = TTSService()
+        self.output_dir = "output"
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
 
     def process_analysis(self, username: str):
         """Process the analysis for a given username."""
@@ -44,17 +52,16 @@ class Manager:
             refresh_per_second=10,
         ) as live:
             # Check cache first
-            if self.config.use_cache and not self.config.force_refresh:
+            if not self.config.force_refresh:
                 cached_result = self.cache_manager.get_cached_result(username, self.config.__dict__)
                 if cached_result:
                     result = cached_result["result"]
                     live.stop()
-                    self.print_results(
-                        username, result["user_info"], result["full_analysis"], result.get("tts_summary")
-                    )
+                    self._print_analysis(username, result["full_analysis"])
+                    self._handle_tts(result["tts_summary"])
                     return
 
-            live.update(Spinner("dots", text="[bright_magenta]Fetching user data...[/bright_magenta]"))
+            live.update(Spinner("dots", text="[bright_magenta]Fetching reddit user statistics...[/bright_magenta]"))
             redditor = self.reddit_service.fetch_redditor(username)
             if not redditor:
                 live.stop()
@@ -63,15 +70,11 @@ class Manager:
 
             user_info = self.reddit_service.get_user_info(username)
 
-            live.update(Spinner("dots", text="[bright_magenta]Fetching comments and posts...[/bright_magenta]"))
-            user_comments = self.reddit_service.fetch_comments(
-                redditor,
-                limit=self.config.comments_limit,
-                include_parent_context=self.config.include_parent_context,
-                max_parent_context_length=self.config.max_parent_context_length,
-                max_comment_length=self.config.max_comment_length,
-            )
-            user_posts = self.reddit_service.fetch_posts(redditor, limit=self.config.posts_limit)
+            live.update(Spinner("dots", text="[bright_magenta]Fetching reddit comments...[/bright_magenta]"))
+            user_comments = list(self.reddit_service.fetch_comments(redditor))
+
+            live.update(Spinner("dots", text="[bright_magenta]Fetching reddit posts...[/bright_magenta]"))
+            user_posts = list(self.reddit_service.fetch_posts(redditor))
 
             if not user_comments and not user_posts:
                 live.stop()
@@ -79,24 +82,27 @@ class Manager:
                 return
 
             live.update(Spinner("dots", text="[bright_magenta]Fetching subreddit descriptions...[/bright_magenta]"))
-            subreddit_descriptions = self.reddit_service.get_subreddit_descriptions(
-                user_comments,
-                user_posts,
-                cache_manager=self.cache_manager,
+            unique_subreddits = {
+                item.subreddit for item in user_comments + user_posts
+            }
+            subreddit_descriptions = self.cache_manager.get_subreddit_descriptions(
+                reddit_instance=self.reddit_service.reddit,
+                subreddits=unique_subreddits,
                 force_refresh=self.config.force_refresh,
             )
 
-            live.update(Spinner("dots", text="[bright_magenta]Analyzing with LLM...[/bright_magenta]"))
+            live.update(Spinner("dots", text="[bright_magenta]Analyzing reddit trends...[/bright_magenta]"))
             full_analysis = self.llm_service.analyze_reddit_activity(
-                user_comments,
-                user_posts,
+                user_info=user_info,
+                comments=user_comments,
+                posts=user_posts,
                 subreddit_descriptions=subreddit_descriptions,
                 include_post_bodies=self.config.include_post_bodies,
                 max_activities=self.config.llm_activities_limit,
                 max_post_body_length=self.config.max_post_body_length,
             )
 
-            live.update(Spinner("dots", text="[bright_magenta]Generating summary...[/bright_magenta]"))
+            live.update(Spinner("dots", text="[bright_magenta]Generating analysis summary...[/bright_magenta]"))
             tts_summary = self.llm_service.summarize_analysis(full_analysis, max_length=350)
 
             analysis_payload = {
@@ -105,19 +111,37 @@ class Manager:
                 "tts_summary": tts_summary,
             }
 
-            if self.config.use_cache:
-                self.cache_manager.save_result(username, self.config.__dict__, analysis_payload)
+            self.cache_manager.save_result(username, self.config.__dict__, analysis_payload)
 
             live.stop()
-            self.print_results(username, user_info, full_analysis, tts_summary)
 
-    def print_results(self, username, user_info, full_analysis, tts_summary):
-        """Print the analysis results."""
+            self._print_analysis(username, full_analysis)
+            self._save_output(username, full_analysis, tts_summary)
+            self._handle_tts(tts_summary)
+
+    def _print_analysis(self, username, full_analysis):
+        """Print the analysis results to the console."""
         console.print(Panel(Markdown(full_analysis), title=f"Analysis for {username}", border_style="bright_cyan"))
 
+    def _save_output(self, username, full_analysis, tts_summary):
+        """Save the analysis and TTS summary to files."""
+        if self.config.save_output:
+            output_path = os.path.join(self.output_dir, f"{username}.md")
+            with open(output_path, "w") as f:
+                f.write(full_analysis)
+            console.print(f"[green]Analysis saved to {output_path}[/green]")
+
+            if tts_summary:
+                tts_output_path = os.path.join(self.output_dir, f"{username}_summary.txt")
+                with open(tts_output_path, "w") as f:
+                    f.write(tts_summary)
+                console.print(f"[green]TTS summary saved to {tts_output_path}[/green]")
+
+    def _handle_tts(self, tts_summary):
+        """Handle the text-to-speech output."""
         if self.config.use_tts and tts_summary:
             console.print(Panel(tts_summary, title="TTS Summary", border_style="magenta"))
             try:
-                self.tts_service.synthesize_speech(tts_summary)
+                self.tts_service.synthesize_speech(tts_summary, stream=True)
             except Exception as e:
                 console.print(f"[red]Error during TTS synthesis: {e}[/red]")
