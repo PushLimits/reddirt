@@ -102,5 +102,8 @@ def handle_command(prompt: str, manager):
         return True
 
     # If it's not a command, treat it as a username
+    if stripped_prompt.lower().startswith("u/"):
+        stripped_prompt = stripped_prompt[2:]
+
     manager.process_analysis(stripped_prompt)
     return True
