@@ -21,4 +21,3 @@ wheels/
 # Project specific files
 .cache/
 output/
-prompts/
