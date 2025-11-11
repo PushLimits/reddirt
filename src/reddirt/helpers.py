@@ -38,7 +38,8 @@ def handle_config(manager):
         editable_keys = [
             key
             for key in config_vars
-            if key not in ["reddit_client_id", "reddit_client_secret", "gemini_api_key", "reddit_user_agent"]
+            if key
+            not in ["reddit_client_id", "reddit_client_secret", "gemini_api_key", "gemini_api_url", "reddit_user_agent"]
         ]
 
         choices = []

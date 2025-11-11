@@ -15,6 +15,7 @@ class Config:
     reddit_client_secret: str
     reddit_user_agent: str
     gemini_api_key: str
+    gemini_api_url: str
     cache_days: int = field(default=7, metadata={"description": "The number of days to keep cached data."})
     comments_limit: int = field(default=150, metadata={"description": "The maximum number of comments to fetch."})
     posts_limit: int = field(default=150, metadata={"description": "The maximum number of posts to fetch."})
@@ -49,11 +50,7 @@ class Config:
         """Create a Config instance from environment variables."""
         load_dotenv()
 
-        required_env_vars = [
-            "REDDIT_CLIENT_ID",
-            "REDDIT_CLIENT_SECRET",
-            "GEMINI_API_KEY",
-        ]
+        required_env_vars = ["REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "GEMINI_API_KEY", "GEMINI_API_URL"]
         missing_vars = [var for var in required_env_vars if not os.getenv(var)]
         if missing_vars:
             error_msg = f"Missing required environment variables: {', '.join(missing_vars)}"
@@ -65,4 +62,5 @@ class Config:
             reddit_client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
             reddit_user_agent=os.getenv("REDDIT_USER_AGENT", "script:reddirt:v1.0"),
             gemini_api_key=os.getenv("GEMINI_API_KEY"),
+            gemini_api_url=os.getenv("GEMINI_API_URL"),
         )

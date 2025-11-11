@@ -37,7 +37,7 @@ class Manager:
             max_parent_context_length=self.config.max_parent_context_length,
             max_comment_length=self.config.max_comment_length,
         )
-        self.llm_service = LLMService(api_key=self.config.gemini_api_key)
+        self.llm_service = LLMService(api_key=self.config.gemini_api_key, api_url=self.config.gemini_api_url)
         self.tts_service = TTSService()
         self.output_dir = "output"
         if not os.path.exists(self.output_dir):
@@ -82,9 +82,7 @@ class Manager:
                 return
 
             live.update(Spinner("dots", text="[bright_magenta]Fetching subreddit descriptions...[/bright_magenta]"))
-            unique_subreddits = {
-                item.subreddit for item in user_comments + user_posts
-            }
+            unique_subreddits = {item.subreddit for item in user_comments + user_posts}
             subreddit_descriptions = self.cache_manager.get_subreddit_descriptions(
                 reddit_instance=self.reddit_service.reddit,
                 subreddits=unique_subreddits,

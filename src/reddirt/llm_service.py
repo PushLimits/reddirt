@@ -13,12 +13,10 @@ from .models import Comment, Post
 class LLMService:
     """Service for analyzing Reddit activity using a language model."""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, api_url: str):
         """Initialize the LLM service with API key."""
         self.api_key = api_key
-        self.api_url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        )
+        self.api_url = api_url
 
     def analyze_reddit_activity(
         self,
@@ -137,7 +135,10 @@ class LLMService:
         try:
             response = requests.post(
                 self.api_url,
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "X-goog-api-key": self.api_key,
+                },
                 json=payload,
                 timeout=90,
             )
@@ -186,7 +187,13 @@ class LLMService:
 
         try:
             response = requests.post(
-                self.api_url, headers={"Content-Type": "application/json"}, json=payload, timeout=90
+                self.api_url,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-goog-api-key": self.api_key,
+                },
+                json=payload,
+                timeout=90,
             )
             response.raise_for_status()
             result = response.json()
