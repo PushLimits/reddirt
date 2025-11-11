@@ -1,7 +1,7 @@
 """Provides a service for fetching user activity from the Reddit API using PRAW."""
 
 import logging
-from typing import Generator, List, Optional
+from typing import Generator, Optional
 
 import praw
 from praw.exceptions import PRAWException
@@ -92,9 +92,7 @@ class RedditService:
             logging.error(f"Could not fetch user info for '{username}': {e}")
             return {}
 
-    def _get_parent_context(
-        self, comment: praw.models.Comment, max_length: int
-    ) -> tuple[Optional[str], Optional[str]]:
+    def _get_parent_context(self, comment: praw.models.Comment, max_length: int) -> tuple[Optional[str], Optional[str]]:
         """Fetches the parent context (body or title) for a given PRAW comment.
 
         Args:
@@ -115,9 +113,7 @@ class RedditService:
             if isinstance(parent, praw.models.Submission):
                 return parent.title[:max_length], parent_author
         except PRAWException as e:
-            logging.warning(
-                f"Could not fetch parent context for comment {comment.id}: {e}"
-            )
+            logging.warning(f"Could not fetch parent context for comment {comment.id}: {e}")
         return None, None
 
     def fetch_comments(
@@ -134,16 +130,12 @@ class RedditService:
         Yields:
             A Comment data object for each fetched comment.
         """
-        logging.info(
-            f"Fetching last {self.comments_limit} comments for user {redditor.name}..."
-        )
+        logging.info(f"Fetching last {self.comments_limit} comments for user {redditor.name}...")
         try:
             for c in redditor.comments.new(limit=self.comments_limit):
                 parent_context, parent_author = None, None
                 if self.include_parent_context:
-                    parent_context, parent_author = self._get_parent_context(
-                        c, self.max_parent_context_length
-                    )
+                    parent_context, parent_author = self._get_parent_context(c, self.max_parent_context_length)
 
                 yield Comment(
                     id=c.id,
@@ -169,9 +161,7 @@ class RedditService:
         Yields:
             A Post data object for each fetched post.
         """
-        logging.info(
-            f"Fetching last {self.posts_limit} posts for user {redditor.name}..."
-        )
+        logging.info(f"Fetching last {self.posts_limit} posts for user {redditor.name}...")
         try:
             for p in redditor.submissions.new(limit=self.posts_limit):
                 yield Post(

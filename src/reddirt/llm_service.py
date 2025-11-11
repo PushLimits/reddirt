@@ -13,12 +13,10 @@ from .models import Comment, Post
 class LLMService:
     """Service for analyzing Reddit activity using a language model."""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, api_url: str):
         """Initialize the LLM service with API key."""
         self.api_key = api_key
-        self.api_url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        )
+        self.api_url = api_url
 
     def analyze_reddit_activity(
         self,
@@ -56,7 +54,9 @@ class LLMService:
         # Build XML user info
         user_info_xml = "  <UserInfo>\n"
         for key, value in user_info.items():
-            user_info_xml += f"    <{key.replace('_', '').capitalize()}>{value}</{key.replace('_', '').capitalize()}>\n"
+            tag = key.replace("_", "").capitalize()
+            escaped_value = html.escape(str(value), quote=True)
+            user_info_xml += f"    <{tag}>{escaped_value}</{tag}>\n"
         user_info_xml += "  </UserInfo>\n"
 
         # Build XML subreddit context
@@ -64,7 +64,9 @@ class LLMService:
         if subreddit_descriptions:
             subreddit_context_xml = "  <SubredditContexts>\n"
             for sub, desc in subreddit_descriptions.items():
-                subreddit_context_xml += f'    <Subreddit name="{sub}">{desc}</Subreddit>\n'
+                escaped_name = html.escape(str(sub), quote=True)
+                escaped_desc = html.escape(str(desc), quote=True)
+                subreddit_context_xml += f'    <Subreddit name="{escaped_name}">{escaped_desc}</Subreddit>\n'
             subreddit_context_xml += "  </SubredditContexts>\n"
 
         # XML instructions
@@ -133,8 +135,12 @@ class LLMService:
         try:
             response = requests.post(
                 self.api_url,
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "X-goog-api-key": self.api_key,
+                },
                 json=payload,
+                timeout=90,
             )
             response.raise_for_status()
             result = response.json()
@@ -182,8 +188,12 @@ class LLMService:
         try:
             response = requests.post(
                 self.api_url,
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "X-goog-api-key": self.api_key,
+                },
                 json=payload,
+                timeout=90,
             )
             response.raise_for_status()
             result = response.json()

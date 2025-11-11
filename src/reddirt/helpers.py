@@ -38,7 +38,8 @@ def handle_config(manager):
         editable_keys = [
             key
             for key in config_vars
-            if key not in ["reddit_client_id", "reddit_client_secret", "gemini_api_key", "reddit_user_agent"]
+            if key
+            not in ["reddit_client_id", "reddit_client_secret", "gemini_api_key", "gemini_api_url", "reddit_user_agent"]
         ]
 
         choices = []
@@ -102,5 +103,8 @@ def handle_command(prompt: str, manager):
         return True
 
     # If it's not a command, treat it as a username
+    if stripped_prompt.lower().startswith("u/"):
+        stripped_prompt = stripped_prompt[2:]
+
     manager.process_analysis(stripped_prompt)
     return True
